@@ -168,45 +168,36 @@ nil if the end of stream has been reached")
    (identical? c \f) "\f"
    :else nil))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; unicode
-(defn read-n-chars [n reader]
-  (for [i (range n)] (read-char reader)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn read-2-chars [reader]
+  (.toString
+    (gstring/StringBuffer. 
+      (read-char reader) 
+      (read-char reader))
+  ))
 
-(def hexchar-pattern (re-pattern "[0-9A-Fa-f]"))
+(defn read-4-chars [reader]
+  (.toString
+    (gstring/StringBuffer. 
+      (read-char reader) 
+      (read-char reader)
+      (read-char reader) 
+      (read-char reader))
+  ))
 
-(defn hexchar? [c] 
-  (re-find hexchar-pattern c))
+(def unicode-2-pattern (re-pattern "[0-9A-Fa-f]{2}"))
+(def unicode-4-pattern (re-pattern "[0-9A-Fa-f]{4}"))
 
-(defn validate-unicode-escape [reader escape-char chars]
-  (if (every? hexchar? chars)
-    chars
-    (reader-error reader "Unexpected unicode escape \\" escape-char (apply str chars))))
+(defn validate-unicode-escape [unicode-pattern reader escape-char unicode-str]
+  (if (re-matches unicode-pattern unicode-str)
+    unicode-str
+    (reader-error reader "Unexpected unicode escape \\" escape-char unicode-str)))
 
-(defn make-unicode-char [chars]
-    (let [code-str (apply str chars)
-          code (js/parseInt code-str 16)]
+(defn make-unicode-char [code-str]
+    (let [code (js/parseInt code-str 16)]
       (.fromCharCode js/String code)))
-
-(defn read-unicode-char
-  [reader initch]
-  (cond
-    (= initch "x")
-    (->> (read-n-chars 2 reader)
-      (validate-unicode-escape reader initch)
-      (make-unicode-char))
-    
-    (= initch "u")
-    (->> (read-n-chars 4 reader)
-      (validate-unicode-escape reader initch)
-      (make-unicode-char))
-
-    ; unsure about how this might arise 
-    ; - need is implied from calling context in escape-char
-    (numeric? initch)
-    (.fromCharCode js/String initch)
-    
-    :else
-    (reader-error reader "Unexpected unicode escape \\" initch )))
 
 (defn escape-char
   [buffer reader]
@@ -214,9 +205,25 @@ nil if the end of stream has been reached")
         mapresult (escape-char-map ch)]
     (if mapresult
       mapresult
-      (if (or (identical? \u ch) (numeric? ch))
-        (read-unicode-char reader ch)
-        (reader-error reader "Unsupported escape character: \\" ch)))))
+      (cond
+        (identical? ch \x)
+        (->> (read-2-chars reader)
+          (validate-unicode-escape unicode-2-pattern reader ch)
+          (make-unicode-char))
+    
+        (identical? ch \u)
+        (->> (read-4-chars reader)
+          (validate-unicode-escape unicode-4-pattern reader ch)
+          (make-unicode-char))
+
+        ; unsure about how this might arise 
+        ; - need was implied from original calling context in escape-char
+        ; can someone in the know please confirm
+        (numeric? ch)
+        (.fromCharCode js/String ch)
+    
+        :else
+        (reader-error reader "Unexpected unicode escape \\" ch )))))
 
 (defn read-past
   "Read until first character that doesn't match pred, returning

@@ -93,8 +93,7 @@
               (reader/read-string unicode-error)
               :failed-to-throw
               (catch js/Error e :ok))]
-      (when (= r :failed-to-throw)
-        (assert false (str "Failed to throw reader error for: " unicode-error)))
+      (assert (= r :ok) (str "Failed to throw reader error for: " unicode-error))
       ))  
   
   :ok)

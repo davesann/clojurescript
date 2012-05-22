@@ -65,10 +65,11 @@ nil if the end of stream has been reached")
 ;; read helpers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
 ; later will do e.g. line numbers...
 (defn reader-error
   [rdr & msg]
-  (throw (apply str msg)))
+  (throw (js/Error. (apply str msg))))
 
 (defn ^boolean macro-terminating? [ch]
   (and (coercive-not= ch "#")

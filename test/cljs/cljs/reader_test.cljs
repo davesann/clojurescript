@@ -79,7 +79,7 @@
          {:привет :ru "你好" :cn}
          ]]
     (let [input (pr-str unicode)
-          read  (r/read-string input)]
+          read  (reader/read-string input)]
       (assert (= unicode read)
               (str "Failed to read-string \"" unicode "\" from: " input))))
   
@@ -90,7 +90,7 @@
            "\"abc \\u0g00 ..etc\""  ; incorrect code
            ]]
     (let [r (try
-              (r/read-string unicode-error)
+              (reader/read-string unicode-error)
               :failed-to-throw
               (catch js/Error e :ok))]
       (when (= r :failed-to-throw)
